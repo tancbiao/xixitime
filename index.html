@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>科学探险家 - 网站迁移通知</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: center;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+  }
+  .particles {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;
+  }
+  .particle {
+    position: absolute; width: 3px; height: 3px;
+    background: rgba(255,255,255,0.3); border-radius: 50%;
+    animation: float 8s infinite ease-in-out;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+    50% { transform: translateY(-40px) scale(1.5); opacity: 0.8; }
+  }
+  .card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 48px 40px;
+    max-width: 480px; width: 90%;
+    text-align: center;
+    animation: slideUp 0.6s ease-out;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .icon { font-size: 4em; margin-bottom: 16px; animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  h1 {
+    font-size: 1.6em; font-weight: 900; color: #ffd700;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #ffd700, #ff9800);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  p {
+    color: rgba(255,255,255,0.7); font-size: 0.95em;
+    line-height: 1.8; margin-bottom: 8px;
+  }
+  .highlight { color: #ffd700; font-weight: 600; }
+  .btn {
+    display: inline-block; margin-top: 28px;
+    padding: 14px 48px;
+    background: linear-gradient(135deg, #ffd700, #ff9800);
+    color: #1a1a2e; font-size: 1.1em; font-weight: 700;
+    border: none; border-radius: 50px; cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(255,215,0,0.3);
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(255,215,0,0.5);
+  }
+  .domain {
+    font-size: 0.85em; color: rgba(255,255,255,0.4); margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="particles" id="particles"></div>
+<div class="card">
+  <div class="icon">🚀</div>
+  <h1>科学探险家搬家啦！</h1>
+  <p>我们的网站已迁移至新域名：</p>
+  <p class="highlight" style="font-size:1.2em;">kexvefuxi.cn</p>
+  <p>题库更全、加载更快、功能更强！<br>请点击下方按钮前往新站继续学习 🔽</p>
+  <a href="https://kexvefuxi.cn" class="btn">前往新网站 →</a>
+  <div class="domain">请更新收藏夹和书签<br>旧域名 xixitime.cn 即将停用</div>
+</div>
+<script>
+  // 粒子背景
+  (function() {
+    var c = document.getElementById('particles');
+    for (var i = 0; i < 40; i++) {
+      var p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      p.style.animationDelay = Math.random() * 8 + 's';
+      p.style.animationDuration = (6 + Math.random() * 6) + 's';
+      c.appendChild(p);
+    }
+  })();
+</script>
+</body>
+</html>
