@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>倒计时</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--text-dim:#94a3b8;
+    --accent:#6366f1;--accent-hover:#818cf8;--danger:#ef4444;--success:#22c55e;
+    --warning:#f59e0b;--orange:#f97316;--ring:0 0 0 3px rgba(99,102,241,0.3);
+  }
+
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;transition:background 0.3s;
+  }
+  /* Fullscreen: pure countdown only */
+  body.fullscreen{background:#000 !important}
+  body.fullscreen .top-bar,
+  body.fullscreen .mode-switcher,
+  body.fullscreen #examSection,
+  body.fullscreen #dailySection,
+  body.fullscreen #mainControls,
+  body.fullscreen .info-footer{display:none !important}
+  body.fullscreen .container{max-width:100vw;padding:0}
+  body.fullscreen .timer-display{margin-bottom:0;width:100%}
+  body.fullscreen .time-circle{
+    width:auto;height:auto;border:none;background:transparent;
+    animation:none;box-shadow:none;margin:0
+  }
+  body.fullscreen .time-text{
+    font-size:min(42vw,38vh);line-height:1;letter-spacing:0;white-space:nowrap
+  }
+  body.fullscreen .time-text.has-hours{font-size:min(28vw,30vh)}
+  body.fullscreen .time-circle.warning .time-text{color:var(--warning)}
+  body.fullscreen .time-circle.danger .time-text{color:var(--danger)}
+  body.fullscreen .time-label{font-size:min(5vw,5vh,36px);margin-top:12px}
+  body.fullscreen .fullscreen-exit-hint{
+    display:block;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    font-size:12px;color:rgba(255,255,255,.12);letter-spacing:.05em;
+    animation:fadeHint 3s ease-in-out
+  }
+  @keyframes fadeHint{0%,100%{opacity:0}50%{opacity:1}}
+
+  .container{width:100%;max-width:680px;padding:28px 20px;transition:all 0.3s}
+
+  /* Top bar: title + settings */
+  .top-bar{display:flex;align-items:center;justify-content:center;margin-bottom:24px;position:relative}
+  .header h1{
+    font-size:28px;font-weight:700;letter-spacing:.04em;
+    background:linear-gradient(135deg,#e2e8f0 0%,#818cf8 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .settings-btn{
+    position:absolute;right:0;top:50%;transform:translateY(-50%);
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--border);
+    background:var(--card);color:var(--text-dim);font-size:16px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all 0.2s;font-family:inherit;
+  }
+  .settings-btn:hover{color:var(--text);border-color:var(--accent)}
+
+  .fullscreen-btn{
+    position:absolute;right:44px;top:50%;transform:translateY(-50%);
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--border);
+    background:var(--card);color:var(--text-dim);font-size:15px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all 0.2s;font-family:inherit;
+  }
+  .fullscreen-btn:hover{color:var(--text);border-color:var(--accent)}
+
+  /* Mode Switcher */
+  .mode-switcher{display:flex;gap:8px;justify-content:center;margin-bottom:24px}
+  .mode-btn{
+    padding:7px 18px;border-radius:20px;border:1px solid var(--border);
+    background:var(--card);color:var(--text-dim);font-size:13px;font-weight:500;
+    cursor:pointer;transition:all .2s;font-family:inherit
+  }
+  .mode-btn:hover{color:var(--text);border-color:var(--accent)}
+  .mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  /* Timer Display */
+  .timer-display{text-align:center;margin-bottom:24px}
+  .time-circle{
+    width:240px;height:240px;margin:0 auto;border-radius:50%;
+    border:4px solid var(--border);display:flex;align-items:center;
+    justify-content:center;transition:all .3s;background:var(--card)
+  }
+  .time-circle.warning{border-color:var(--warning)}
+  .time-circle.danger{border-color:var(--danger);animation:pulse-ring 1s ease-in-out infinite}
+  .time-circle.running{border-color:var(--accent)}
+  @keyframes pulse-ring{
+    0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}
+    50%{box-shadow:0 0 0 16px rgba(239,68,68,0)}
+  }
+  .time-text{
+    font-size:64px;font-weight:800;letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+    font-family:'SF Mono','JetBrains Mono','Consolas',monospace;
+    color:var(--text);transition:all .3s
+  }
+  .time-text.has-hours{font-size:38px}
+  .time-circle.danger .time-text{color:var(--danger)}
+  .time-circle.warning .time-text{color:var(--warning)}
+  .time-label{font-size:13px;color:var(--text-dim);margin-top:8px;letter-spacing:.05em}
+
+  /* Section title */
+  .section-title{font-size:12px;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-align:center}
+
+  /* Preset Grid */
+  .preset-grid,.timepoint-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px
+  }
+  .preset-btn,.timepoint-btn{
+    padding:10px 6px;border-radius:10px;border:1px solid var(--border);
+    background:var(--card);color:var(--text);font-size:15px;font-weight:600;
+    cursor:pointer;transition:all .2s;font-family:inherit;text-align:center
+  }
+  .preset-btn:hover{border-color:var(--accent);background:#1e1b4b}
+  .preset-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+  .timepoint-btn:hover{border-color:var(--orange);background:#2d1a0a}
+  .timepoint-btn.selected{border-color:var(--orange);background:var(--orange);color:#fff}
+  .preset-btn .tomato-icon{font-size:18px;display:block;margin-bottom:1px}
+  .preset-btn small{font-size:12px;font-weight:400;opacity:.8}
+
+  /* End-time row */
+  .endtime-row{
+    display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;flex-wrap:wrap
+  }
+  .endtime-label{font-size:14px;color:var(--text-dim);white-space:nowrap}
+  .endtime-input,.custom-input{
+    width:52px;padding:8px 4px;text-align:center;font-size:18px;font-weight:700;
+    font-family:'SF Mono','JetBrains Mono','Consolas',monospace;
+    background:var(--card);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);outline:none;transition:border-color .2s;-moz-appearance:textfield
+  }
+  .endtime-input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(249,115,22,.25)}
+  .custom-input:focus{border-color:var(--accent);box-shadow:var(--ring)}
+  .endtime-input::-webkit-inner-spin-button,.endtime-input::-webkit-outer-spin-button,
+  .custom-input::-webkit-inner-spin-button,.custom-input::-webkit-outer-spin-button{opacity:1}
+  .endtime-sep,.custom-sep{font-size:20px;font-weight:700;color:var(--text-dim)}
+  .custom-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px}
+  .set-btn{
+    padding:8px 16px;border-radius:8px;border:none;color:#fff;font-size:13px;font-weight:600;
+    cursor:pointer;font-family:inherit;transition:all .2s
+  }
+  .set-btn.accent{background:var(--accent)}
+  .set-btn.accent:hover{background:var(--accent-hover)}
+  .set-btn.orange{background:var(--orange)}
+  .set-btn.orange:hover{background:#ea580c}
+
+  /* Controls */
+  .controls{display:flex;gap:12px;justify-content:center}
+  .ctrl-btn{
+    padding:10px 28px;border-radius:10px;border:none;font-size:15px;font-weight:600;
+    cursor:pointer;transition:all .2s;font-family:inherit;letter-spacing:.03em
+  }
+  .ctrl-start{background:var(--success);color:#fff}
+  .ctrl-start:hover{background:#16a34a;transform:translateY(-1px)}
+  .ctrl-pause{background:var(--warning);color:#1e293b}
+  .ctrl-pause:hover{background:#d97706;transform:translateY(-1px)}
+  .ctrl-reset{background:var(--card);color:var(--text);border:1px solid var(--border)}
+  .ctrl-reset:hover{background:#334155;transform:translateY(-1px)}
+
+  .or-label{text-align:center;font-size:11px;color:var(--text-dim);margin:6px 0}
+
+  /* Info footer */
+  .info-footer{text-align:center;margin-top:16px;font-size:11px;color:var(--text-dim);line-height:1.8}
+  .info-footer .dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--text-dim);margin:0 6px;vertical-align:middle}
+
+  /* Settings Modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;
+    justify-content:center;z-index:100;backdrop-filter:blur(4px)
+  }
+  .modal-overlay.open{display:flex}
+  .modal{
+    background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:28px;width:90%;max-width:400px;animation:fadeIn .2s ease
+  }
+  @keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+  .modal h3{font-size:18px;margin-bottom:20px;text-align:center}
+  .modal label{display:block;font-size:14px;color:var(--text-dim);margin-bottom:6px}
+  .modal select,.modal input[type=number]{
+    width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);
+    background:var(--bg);color:var(--text);font-size:15px;font-family:inherit;outline:none;margin-bottom:16px
+  }
+  .modal select:focus,.modal input:focus{border-color:var(--accent)}
+  .modal .modal-btns{display:flex;gap:10px;justify-content:flex-end}
+  .modal .modal-btns button{
+    padding:8px 20px;border-radius:8px;border:none;font-size:14px;font-weight:600;
+    cursor:pointer;font-family:inherit;transition:all .2s
+  }
+  .modal .btn-cancel{background:var(--border);color:var(--text)}
+  .modal .btn-save{background:var(--accent);color:#fff}
+  .modal .btn-save:hover{background:var(--accent-hover)}
+
+  /* Refresh button for timepoints */
+  .refresh-row{text-align:center;margin-bottom:12px}
+  .refresh-btn{
+    font-size:12px;color:var(--text-dim);background:none;border:none;
+    cursor:pointer;font-family:inherit;padding:4px 12px;border-radius:6px;transition:all .2s
+  }
+  .refresh-btn:hover{color:var(--text);background:var(--card)}
+
+  @media(max-width:480px){
+    .time-circle{width:190px;height:190px}
+    .time-text{font-size:50px}
+    .preset-grid,.timepoint-grid{grid-template-columns:repeat(4,1fr);gap:6px}
+    .preset-btn,.timepoint-btn{font-size:13px;padding:9px 5px}
+    .container{padding:18px 14px}
+  }
+</style>
+</head>
+<body id="bodyEl">
+<div class="container">
+
+  <!-- Top bar: title + icons -->
+  <div class="top-bar">
+    <div class="header"><h1>倒计时</h1></div>
+    <button class="fullscreen-btn" id="btnFullscreen" title="全屏">⛶</button>
+    <button class="settings-btn" id="btnSettings" title="设置">⚙</button>
+  </div>
+
+  <!-- Mode Switcher -->
+  <div class="mode-switcher">
+    <button class="mode-btn active" data-mode="exam" id="modeExam">📋 自然倒计时</button>
+    <button class="mode-btn" data-mode="daily" id="modeDaily">📚 学习倒计时</button>
+  </div>
+
+  <!-- Timer Display -->
+  <div class="timer-display">
+    <div class="time-circle" id="timeCircle">
+      <div class="time-text" id="timer">00:00</div>
+    </div>
+    <div class="time-label" id="timeLabel">准备开始</div>
+    <div class="fullscreen-exit-hint" id="exitHint" style="display:none">按 Esc 退出全屏</div>
+  </div>
+
+  <!-- ========== EXAM MODE ========== -->
+  <div id="examSection">
+    <div class="section-title">📌 点选结束时间</div>
+    <div class="timepoint-grid" id="timepointGrid"></div>
+    <div class="refresh-row"><button class="refresh-btn" id="btnRefreshTimepoints">🔄 刷新时间点</button></div>
+
+    <div class="or-label">—— 或手动输入 ——</div>
+
+    <div class="endtime-row">
+      <span class="endtime-label">🕐 到</span>
+      <input type="number" class="endtime-input" id="endHour" min="0" max="23" value="10" placeholder="时">
+      <span class="endtime-sep">:</span>
+      <input type="number" class="endtime-input" id="endMin" min="0" max="59" value="30" placeholder="分">
+      <span class="endtime-label">结束</span>
+      <button class="set-btn orange" id="btnSetEndTime">设定</button>
+    </div>
+
+    <div class="or-label">—— 或按倒计时时长 ——</div>
+
+    <div class="custom-row">
+      <input type="number" class="custom-input" id="inputHours" min="0" max="23" value="0" placeholder="时">
+      <span class="custom-sep">:</span>
+      <input type="number" class="custom-input" id="inputMinutes" min="0" max="59" value="30" placeholder="分">
+      <span class="custom-sep">:</span>
+      <input type="number" class="custom-input" id="inputSeconds" min="0" max="59" value="0" placeholder="秒">
+      <button class="set-btn accent" id="btnSetCustom">设定</button>
+    </div>
+  </div>
+
+  <!-- ========== DAILY MODE ========== -->
+  <div id="dailySection" style="display:none;">
+    <div class="section-title">快捷预设</div>
+    <div class="preset-grid" id="presetGrid">
+      <button class="preset-btn" data-seconds="60">1<small>分</small></button>
+      <button class="preset-btn" data-seconds="180">3<small>分</small></button>
+      <button class="preset-btn" data-seconds="300">5<small>分</small></button>
+      <button class="preset-btn" data-seconds="420">7<small>分</small></button>
+      <button class="preset-btn" data-seconds="600">10<small>分</small></button>
+      <button class="preset-btn" data-seconds="900">15<small>分</small></button>
+      <button class="preset-btn" data-seconds="1500"><span class="tomato-icon">🍅</span>25<small>分</small></button>
+      <button class="preset-btn" data-seconds="1800">30<small>分</small></button>
+    </div>
+    <div class="or-label">—— 或 ——</div>
+    <div class="custom-row">
+      <input type="number" class="custom-input" id="dailyInputMins" min="0" max="999" value="5" placeholder="分">
+      <span class="endtime-label">分钟</span>
+      <button class="set-btn accent" id="btnSetDailyCustom">设定</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" id="mainControls">
+    <button class="ctrl-btn ctrl-start" id="btnStart">▶ 开始</button>
+    <button class="ctrl-btn ctrl-pause" id="btnPause" style="display:none;">⏸ 暂停</button>
+    <button class="ctrl-btn ctrl-reset" id="btnReset">↺ 重置</button>
+  </div>
+
+  <!-- Info Footer -->
+  <div class="info-footer" id="infoFooter">
+    <span id="infoWarningTime">最后1分钟</span><span>提醒</span><span class="dot"></span><span>最后5秒滴答</span>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h3>⚙ 设置</h3>
+    <label for="warningTimeSelect">提醒时间</label>
+    <select id="warningTimeSelect">
+      <option value="60">最后 1 分钟提醒</option>
+      <option value="180">最后 3 分钟提醒</option>
+      <option value="300">最后 5 分钟提醒</option>
+      <option value="600">最后 10 分钟提醒</option>
+      <option value="900">最后 15 分钟提醒</option>
+    </select>
+    <label for="warningTimeCustom">或自定义（秒）：</label>
+    <input type="number" id="warningTimeCustom" min="10" max="3600" value="60" placeholder="自定义秒数">
+    <div class="modal-btns">
+      <button class="btn-cancel" id="btnSettingsClose">取消</button>
+      <button class="btn-save" id="btnSettingsSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ── State ──
+  let totalSeconds=1800, remaining=1800, timerId=null, mode='exam';
+  let targetEndSeconds=null;
+  let warningTime=60; // seconds — user-configurable
+  let warningFired=false;
+
+  // ── Audio ──
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  let audioCtx=null;
+  function ensureAudio(){if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended')audioCtx.resume()}
+  function playBeep(f,d,t='sine'){
+    try{ensureAudio();const c=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=t;o.frequency.setValueAtTime(f,c);g.gain.setValueAtTime(.3,c);
+    g.gain.exponentialRampToValueAtTime(.001,c+d);o.connect(g);g.connect(audioCtx.destination);o.start(c);o.stop(c+d)}catch(e){}
+  }
+  function playWarningChime(){playBeep(520,.25);setTimeout(()=>playBeep(660,.3),300)}
+
+  // ── DOM ──
+  const $timer=document.getElementById('timer'),$timeCircle=document.getElementById('timeCircle'),
+    $timeLabel=document.getElementById('timeLabel'),$modeExam=document.getElementById('modeExam'),
+    $modeDaily=document.getElementById('modeDaily'),$examSection=document.getElementById('examSection'),
+    $dailySection=document.getElementById('dailySection'),$btnStart=document.getElementById('btnStart'),
+    $btnPause=document.getElementById('btnPause'),$btnReset=document.getElementById('btnReset'),
+    $timepointGrid=document.getElementById('timepointGrid');
+
+  // ── Generate time point presets ──
+  function generateTimepoints(){
+    const now=new Date();
+    const nowMins=now.getHours()*60+now.getMinutes();
+    const nowSecs=nowMins*60+now.getSeconds();
+    // Round up to next 5-min mark
+    const next5=Math.ceil(nowMins/5)*5;
+    const points=[];
+    // Generate upcoming time points
+    const offsets=[0,5,10,15,20,25,30,40,50,60,75,90,105,120,150,180];
+    for(let i=0;i<offsets.length && points.length<12;i++){
+      const tm=(next5+offsets[i])%1440;
+      // skip too-close points (<60s away)
+      const secs=tm*60;
+      if(secs-nowSecs<50)continue;
+      const h=Math.floor(tm/60)%24,m=tm%60;
+      points.push({h,m,secs});
+    }
+    return points;
+  }
+
+  function renderTimepoints(){
+    const pts=generateTimepoints();
+    $timepointGrid.innerHTML=pts.map((p,i)=>{
+      const hh=String(p.h).padStart(2,'0'),mm=String(p.m).padStart(2,'0');
+      return `<button class="timepoint-btn" data-target="${p.secs}">${hh}:${mm}</button>`;
+    }).join('');
+    // Re-bind
+    $timepointGrid.querySelectorAll('.timepoint-btn').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const target=parseInt(b.dataset.target);
+        const now=new Date();
+        const nowSecs=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+        let diff=target-nowSecs;
+        if(diff<=0)diff+=86400; // next day
+        setEndTimeBySecs(target,diff);
+        highlightTimepointBtn(target);
+      });
+    });
+    highlightTimepointBtn(targetEndSeconds);
+  }
+
+  function highlightTimepointBtn(targetSecs){
+    $timepointGrid.querySelectorAll('.timepoint-btn').forEach(b=>{
+      b.classList.toggle('selected',parseInt(b.dataset.target)===targetSecs);
+    });
+  }
+
+  // ── Format ──
+  function formatTime(sec){
+    const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+    return h>0?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')
+      :String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+
+  // ── Update display ──
+  function updateDisplay(){
+    const txt=formatTime(remaining);
+    $timer.textContent=txt;
+    // toggle has-hours class for fullscreen font sizing
+    $timer.classList.toggle('has-hours',remaining>=3600);
+
+    $timeCircle.classList.remove('warning','danger','running');
+    if(timerId!==null)$timeCircle.classList.add('running');
+    if(remaining<=5&&remaining>0)$timeCircle.classList.add('danger');
+    else if(remaining<=warningTime&&remaining>0)$timeCircle.classList.add('warning');
+
+    if(remaining<=0&&timerId===null){$timeLabel.textContent='⏰ 时间到！'}
+    else if(timerId!==null){
+      if(remaining<=5)$timeLabel.textContent='即将结束...';
+      else if(remaining<=warningTime)$timeLabel.textContent=`最后 ${Math.ceil(warningTime/60)} 分钟提醒`;
+      else{const et=new Date(Date.now()+remaining*1000);
+        $timeLabel.textContent='计时中 · 预计 '+String(et.getHours()).padStart(2,'0')+':'+String(et.getMinutes()).padStart(2,'0')+' 结束'}
+    }else{
+      const m=Math.floor(remaining/60);
+      m>=60?$timeLabel.textContent=`已设定 ${Math.floor(m/60)}小时${m%60}分钟`:$timeLabel.textContent=`已设定 ${m} 分钟`;
+    }
+    updateFooterInfo();
+  }
+
+  function updateFooterInfo(){
+    const mins=Math.ceil(warningTime/60);
+    document.getElementById('infoWarningTime').textContent=`最后${mins}分钟`;
+  }
+
+  // ── Timer controls ──
+  function stopTimer(){if(timerId!==null){clearInterval(timerId);timerId=null}}
+  function startTimer(){
+    if(remaining<=0)return;ensureAudio();stopTimer();warningFired=false;
+    timerId=setInterval(()=>{
+      remaining--;updateDisplay();
+      if(remaining<=5&&remaining>0)playBeep(880,.1,'square');
+      if(remaining===warningTime&&!warningFired){warningFired=true;playWarningChime()}
+      if(remaining<=0){stopTimer();updateDisplay();
+        playBeep(660,.2);setTimeout(()=>playBeep(880,.3),200);setTimeout(()=>playBeep(1100,.5),400)}
+    },1000);
+    $btnStart.style.display='none';$btnPause.style.display='';updateDisplay()
+  }
+  function pauseTimer(){stopTimer();$btnStart.style.display='';$btnPause.style.display='none';
+    $timeLabel.textContent='已暂停';$timeCircle.classList.remove('warning','danger','running')}
+  function resetTimer(){stopTimer();remaining=totalSeconds;$btnStart.style.display='';
+    $btnPause.style.display='none';$timeCircle.classList.remove('warning','danger','running');
+    updateDisplay();highlightActive()}
+
+  function setTime(seconds){stopTimer();totalSeconds=seconds;remaining=seconds;targetEndSeconds=null;
+    $btnStart.style.display='';$btnPause.style.display='none';
+    $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
+
+  function setEndTimeBySecs(targetSecs,diff){stopTimer();targetEndSeconds=targetSecs;totalSeconds=diff;remaining=diff;
+    $btnStart.style.display='';$btnPause.style.display='none';
+    $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
+
+  function setEndTime(h,m){stopTimer();
+    const now=new Date(),endOfDay=h*3600+m*60,
+      nowOfDay=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+    let diff=endOfDay-nowOfDay;if(diff<=0){alert('结束时间已过！请设置未来时间。');return}
+    targetEndSeconds=endOfDay;totalSeconds=diff;remaining=diff;
+    $btnStart.style.display='';$btnPause.style.display='none';
+    $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
+
+  function highlightActive(){
+    document.querySelectorAll('.timepoint-btn,.preset-btn').forEach(b=>b.classList.remove('selected'));
+    if(mode==='exam'){
+      highlightTimepointBtn(targetEndSeconds);
+      document.getElementById('inputHours').value=Math.floor(totalSeconds/3600);
+      document.getElementById('inputMinutes').value=Math.floor((totalSeconds%3600)/60);
+      document.getElementById('inputSeconds').value=totalSeconds%60;
+    }else{
+      document.querySelectorAll('#presetGrid .preset-btn').forEach(b=>{
+        if(parseInt(b.dataset.seconds)===totalSeconds)b.classList.add('selected')})
+    }
+  }
+
+  function switchMode(newMode){stopTimer();mode=newMode;
+    if(mode==='exam'){$modeExam.classList.add('active');$modeDaily.classList.remove('active');
+      $examSection.style.display='';$dailySection.style.display='none';renderTimepoints()}
+    else{$modeDaily.classList.add('active');$modeExam.classList.remove('active');
+      $dailySection.style.display='';$examSection.style.display='none'}
+    totalSeconds=remaining;targetEndSeconds=null;
+    $btnStart.style.display='';$btnPause.style.display='none';
+    $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
+
+  // ── Fullscreen ──
+  function toggleFullscreen(){
+    if(document.fullscreenElement){document.exitFullscreen()}
+    else{document.documentElement.requestFullscreen()}
+  }
+  function onFsChange(){
+    const isFs=!!document.fullscreenElement;
+    document.body.classList.toggle('fullscreen',isFs);
+    document.getElementById('exitHint').style.display=isFs?'block':'none';
+  }
+
+  // ── Settings ──
+  function openSettings(){
+    document.getElementById('warningTimeSelect').value=String(warningTime);
+    document.getElementById('warningTimeCustom').value=String(warningTime);
+    document.getElementById('settingsModal').classList.add('open');
+  }
+  function closeSettings(){document.getElementById('settingsModal').classList.remove('open')}
+  function saveSettings(){
+    const custom=parseInt(document.getElementById('warningTimeCustom').value);
+    const select=parseInt(document.getElementById('warningTimeSelect').value);
+    warningTime=custom>0?custom:select;
+    if(warningTime<5)warningTime=5;
+    closeSettings();updateDisplay();
+  }
+
+  // ── Event bindings ──
+  $modeDaily.addEventListener('click',()=>switchMode('daily'));
+  $modeExam.addEventListener('click',()=>switchMode('exam'));
+  $btnStart.addEventListener('click',startTimer);
+  $btnPause.addEventListener('click',pauseTimer);
+  $btnReset.addEventListener('click',resetTimer);
+  document.getElementById('btnFullscreen').addEventListener('click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',onFsChange);
+  document.getElementById('btnSettings').addEventListener('click',openSettings);
+  document.getElementById('btnSettingsClose').addEventListener('click',closeSettings);
+  document.getElementById('btnSettingsSave').addEventListener('click',saveSettings);
+  document.getElementById('settingsModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings()});
+  document.getElementById('btnRefreshTimepoints').addEventListener('click',renderTimepoints);
+
+  document.getElementById('btnSetEndTime').addEventListener('click',()=>{
+    const h=parseInt(document.getElementById('endHour').value)||0,
+      m=parseInt(document.getElementById('endMin').value)||0;setEndTime(h,m)});
+  document.getElementById('btnSetCustom').addEventListener('click',()=>{
+    const h=parseInt(document.getElementById('inputHours').value)||0,
+      m=parseInt(document.getElementById('inputMinutes').value)||0,
+      s=parseInt(document.getElementById('inputSeconds').value)||0,
+      total=h*3600+m*60+s;if(total<=0)return;setTime(total)});
+  document.getElementById('presetGrid').addEventListener('click',e=>{
+    const btn=e.target.closest('.preset-btn');if(!btn)return;
+    const sec=parseInt(btn.dataset.seconds);if(sec)setTime(sec)});
+  document.getElementById('btnSetDailyCustom').addEventListener('click',()=>{
+    const m=parseInt(document.getElementById('dailyInputMins').value)||0;if(m<=0)return;setTime(m*60)});
+
+  // Enter in inputs
+  document.querySelectorAll('input').forEach(inp=>{inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      if(inp.closest('#examSection'))document.getElementById('btnSetCustom').click();
+      else document.getElementById('btnSetDailyCustom').click()
+    }
+  })});
+
+  // Sync custom input with select in settings
+  document.getElementById('warningTimeSelect').addEventListener('change',function(){
+    document.getElementById('warningTimeCustom').value=this.value});
+  document.getElementById('warningTimeCustom').addEventListener('input',function(){
+    const v=parseInt(this.value);
+    const sel=document.getElementById('warningTimeSelect');
+    const opts=Array.from(sel.options).map(o=>parseInt(o.value));
+    if(opts.includes(v))sel.value=String(v);else sel.value=''});
+
+  // ── Init ──
+  remaining=totalSeconds;renderTimepoints();updateDisplay();highlightActive();updateFooterInfo();
+
+  // Auto-refresh timepoints every 30s when in exam mode
+  setInterval(()=>{if(mode==='exam'&&!timerId)renderTimepoints()},30000);
+})();
+</script>
+</body>
+</html>
