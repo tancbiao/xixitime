@@ -40,12 +40,14 @@
   body.fullscreen .time-circle.warning .time-text{color:var(--warning)}
   body.fullscreen .time-circle.danger .time-text{color:var(--danger)}
   body.fullscreen .time-label{font-size:min(5vw,5vh,36px);margin-top:12px}
-  body.fullscreen .fullscreen-exit-hint{
-    display:block;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-    font-size:12px;color:rgba(255,255,255,.12);letter-spacing:.05em;
-    animation:fadeHint 3s ease-in-out
+  body.fullscreen .fullscreen-exit-btn{
+    display:block;position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    padding:10px 24px;border:1px solid rgba(255,255,255,.15);border-radius:8px;
+    background:rgba(255,255,255,.06);color:rgba(255,255,255,.25);
+    font-size:14px;cursor:pointer;font-family:inherit;transition:all .3s;
+    letter-spacing:.05em
   }
-  @keyframes fadeHint{0%,100%{opacity:0}50%{opacity:1}}
+  body.fullscreen .fullscreen-exit-btn:hover{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.3)}
 
   .container{width:100%;max-width:680px;padding:28px 20px;transition:all 0.3s}
 
@@ -239,7 +241,7 @@
       <div class="time-text" id="timer">00:00</div>
     </div>
     <div class="time-label" id="timeLabel">准备开始</div>
-    <div class="fullscreen-exit-hint" id="exitHint" style="display:none">按 Esc 退出全屏</div>
+    <button class="fullscreen-exit-btn" id="exitBtn" style="display:none">退出全屏</button>
   </div>
 
   <!-- ========== EXAM MODE ========== -->
@@ -504,7 +506,7 @@
   function onFsChange(){
     const isFs=!!document.fullscreenElement;
     document.body.classList.toggle('fullscreen',isFs);
-    document.getElementById('exitHint').style.display=isFs?'block':'none';
+    document.getElementById('exitBtn').style.display=isFs?'block':'none';
   }
 
   // ── Settings ──
@@ -529,6 +531,7 @@
   $btnPause.addEventListener('click',pauseTimer);
   $btnReset.addEventListener('click',resetTimer);
   document.getElementById('btnFullscreen').addEventListener('click',toggleFullscreen);
+  document.getElementById('exitBtn').addEventListener('click',()=>document.exitFullscreen());
   document.addEventListener('fullscreenchange',onFsChange);
   document.getElementById('btnSettings').addEventListener('click',openSettings);
   document.getElementById('btnSettingsClose').addEventListener('click',closeSettings);
