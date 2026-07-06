@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>倒计时</title>
+<meta name="color-scheme" content="dark">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -21,6 +22,10 @@
   }
   /* Fullscreen: pure countdown only */
   body.fullscreen{background:#000 !important}
+  body.fullscreen .container,
+  body.fullscreen .timer-display,
+  body.fullscreen .time-circle,
+  body.fullscreen .time-label{background:transparent !important}
   body.fullscreen .top-bar,
   body.fullscreen .mode-switcher,
   body.fullscreen #examSection,
@@ -30,8 +35,7 @@
   body.fullscreen .container{max-width:100vw;padding:0}
   body.fullscreen .timer-display{margin-bottom:0;width:100%}
   body.fullscreen .time-circle{
-    width:auto;height:auto;border:none;background:transparent;
-    animation:none;box-shadow:none;margin:0
+    width:auto;height:auto;border:none;animation:none;box-shadow:none;margin:0
   }
   body.fullscreen .time-text{
     font-size:min(42vw,38vh);line-height:1;letter-spacing:0;white-space:nowrap
