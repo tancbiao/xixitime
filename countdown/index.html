@@ -253,11 +253,11 @@
     <div class="or-label">—— 或手动输入 ——</div>
 
     <div class="endtime-row">
-      <span class="endtime-label">🕐 到</span>
+      <input type="date" class="endtime-input" id="endDate" style="width:auto;min-width:120px;">
+      <span class="endtime-label">🕐</span>
       <input type="number" class="endtime-input" id="endHour" min="0" max="23" value="10" placeholder="时">
       <span class="endtime-sep">:</span>
       <input type="number" class="endtime-input" id="endMin" min="0" max="59" value="30" placeholder="分">
-      <span class="endtime-label">结束</span>
       <button class="set-btn orange" id="btnSetEndTime">设定</button>
     </div>
 
@@ -359,48 +359,47 @@
   // ── Generate time point presets ──
   function generateTimepoints(){
     const now=new Date();
+    const nowSecsToday=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
     const nowMins=now.getHours()*60+now.getMinutes();
-    const nowSecs=nowMins*60+now.getSeconds();
-    // Round up to next 5-min mark
     const next5=Math.ceil(nowMins/5)*5;
     const points=[];
-    // Generate upcoming time points
     const offsets=[0,5,10,15,20,25,30,40,50,60,75,90,105,120,150,180];
+    let dayOffset=0;
     for(let i=0;i<offsets.length && points.length<12;i++){
-      const tm=(next5+offsets[i])%1440;
-      // skip too-close points (<60s away)
-      const secs=tm*60;
-      if(secs-nowSecs<50)continue;
+      let tm=(next5+offsets[i])%1440;
+      // after wrapping midnight, increment day
+      if(next5+offsets[i]>=1440 && dayOffset===0) dayOffset=1;
       const h=Math.floor(tm/60)%24,m=tm%60;
-      points.push({h,m,secs});
+      const ts=new Date(now.getFullYear(),now.getMonth(),now.getDate()+dayOffset,h,m,0).getTime();
+      const diff=Math.floor((ts-Date.now())/1000);
+      if(diff<50)continue; // skip too close
+      points.push({h,m,ts,diff,dayOffset});
+      // if we just passed 1440, bump dayOffset for remaining entries
     }
     return points;
   }
 
   function renderTimepoints(){
     const pts=generateTimepoints();
-    $timepointGrid.innerHTML=pts.map((p,i)=>{
+    $timepointGrid.innerHTML=pts.map(p=>{
       const hh=String(p.h).padStart(2,'0'),mm=String(p.m).padStart(2,'0');
-      return `<button class="timepoint-btn" data-target="${p.secs}">${hh}:${mm}</button>`;
+      const tag=p.dayOffset?'<small>明天</small>':'';
+      return `<button class="timepoint-btn" data-ts="${p.ts}">${hh}:${mm}${tag}</button>`;
     }).join('');
-    // Re-bind
     $timepointGrid.querySelectorAll('.timepoint-btn').forEach(b=>{
       b.addEventListener('click',()=>{
-        const target=parseInt(b.dataset.target);
-        const now=new Date();
-        const nowSecs=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
-        let diff=target-nowSecs;
-        if(diff<=0)diff+=86400; // next day
-        setEndTimeBySecs(target,diff);
-        highlightTimepointBtn(target);
+        const ts=parseInt(b.dataset.ts);
+        const diff=Math.floor((ts-Date.now())/1000);
+        setEndTimeByTs(ts,diff);
+        highlightTimepointBtn(ts);
       });
     });
     highlightTimepointBtn(targetEndSeconds);
   }
 
-  function highlightTimepointBtn(targetSecs){
+  function highlightTimepointBtn(ts){
     $timepointGrid.querySelectorAll('.timepoint-btn').forEach(b=>{
-      b.classList.toggle('selected',parseInt(b.dataset.target)===targetSecs);
+      b.classList.toggle('selected',parseInt(b.dataset.ts)===ts);
     });
   }
 
@@ -428,10 +427,20 @@
       if(remaining<=5)$timeLabel.textContent='即将结束...';
       else if(remaining<=warningTime)$timeLabel.textContent=`最后 ${Math.ceil(warningTime/60)} 分钟提醒`;
       else{const et=new Date(Date.now()+remaining*1000);
-        $timeLabel.textContent='计时中 · 预计 '+String(et.getHours()).padStart(2,'0')+':'+String(et.getMinutes()).padStart(2,'0')+' 结束'}
+        const days=Math.floor(remaining/86400);
+        const hh=String(et.getHours()).padStart(2,'0'),mm=String(et.getMinutes()).padStart(2,'0');
+        const dStr=days>0?`${et.getMonth()+1}/${et.getDate()} `:'';
+        $timeLabel.textContent='计时中 · 预计 '+dStr+hh+':'+mm+' 结束'}
     }else{
       const m=Math.floor(remaining/60);
-      m>=60?$timeLabel.textContent=`已设定 ${Math.floor(m/60)}小时${m%60}分钟`:$timeLabel.textContent=`已设定 ${m} 分钟`;
+      if(targetEndSeconds){
+        const td=new Date(targetEndSeconds);
+        const tdStr=(td.toLocaleDateString('zh-CN',{month:'short',day:'numeric'})+' ');
+        const hh=String(td.getHours()).padStart(2,'0'),mm=String(td.getMinutes()).padStart(2,'0');
+        $timeLabel.textContent=`目标: ${tdStr}${hh}:${mm} (${m>=60?Math.floor(m/60)+'时'+m%60+'分':m+'分钟'})`;
+      }else{
+        m>=60?$timeLabel.textContent=`已设定 ${Math.floor(m/60)}小时${m%60}分钟`:$timeLabel.textContent=`已设定 ${m} 分钟`;
+      }
     }
     updateFooterInfo();
   }
@@ -464,15 +473,24 @@
     $btnStart.style.display='';$btnPause.style.display='none';
     $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
 
-  function setEndTimeBySecs(targetSecs,diff){stopTimer();targetEndSeconds=targetSecs;totalSeconds=diff;remaining=diff;
+  function setEndTimeByTs(ts,diff){stopTimer();targetEndSeconds=ts;totalSeconds=diff;remaining=diff;
     $btnStart.style.display='';$btnPause.style.display='none';
     $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
 
-  function setEndTime(h,m){stopTimer();
-    const now=new Date(),endOfDay=h*3600+m*60,
-      nowOfDay=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
-    let diff=endOfDay-nowOfDay;if(diff<=0){alert('结束时间已过！请设置未来时间。');return}
-    targetEndSeconds=endOfDay;totalSeconds=diff;remaining=diff;
+  function setEndTime(dateStr,h,m){stopTimer();
+    const now=new Date();
+    let target;
+    if(dateStr){
+      // Use user-specified date
+      target=new Date(dateStr+'T'+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':00');
+    }else{
+      // No date specified — assume today, or tomorrow if time passed
+      target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
+      if(target<=now)target.setDate(target.getDate()+1); // tomorrow
+    }
+    const diff=Math.floor((target.getTime()-Date.now())/1000);
+    if(diff<=0){alert('目标时间已过！请选择未来时间。');return}
+    targetEndSeconds=target.getTime();totalSeconds=diff;remaining=diff;
     $btnStart.style.display='';$btnPause.style.display='none';
     $timeCircle.classList.remove('warning','danger','running');updateDisplay();highlightActive()}
 
@@ -541,7 +559,9 @@
 
   document.getElementById('btnSetEndTime').addEventListener('click',()=>{
     const h=parseInt(document.getElementById('endHour').value)||0,
-      m=parseInt(document.getElementById('endMin').value)||0;setEndTime(h,m)});
+      m=parseInt(document.getElementById('endMin').value)||0;
+    const d=document.getElementById('endDate').value;
+    setEndTime(d,h,m)});
   document.getElementById('btnSetCustom').addEventListener('click',()=>{
     const h=parseInt(document.getElementById('inputHours').value)||0,
       m=parseInt(document.getElementById('inputMinutes').value)||0,
@@ -571,7 +591,11 @@
     if(opts.includes(v))sel.value=String(v);else sel.value=''});
 
   // ── Init ──
-  remaining=totalSeconds;renderTimepoints();updateDisplay();highlightActive();updateFooterInfo();
+  remaining=totalSeconds;
+  // Set date input to today
+  const today=new Date();
+  document.getElementById('endDate').value=today.toISOString().split('T')[0];
+  renderTimepoints();updateDisplay();highlightActive();updateFooterInfo();
 
   // Auto-refresh timepoints every 30s when in exam mode
   setInterval(()=>{if(mode==='exam'&&!timerId)renderTimepoints()},30000);
